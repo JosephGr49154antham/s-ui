@@ -107,3 +107,15 @@ func TestDeleteNotFound(t *testing.T) {
 		t.Error("expected error when deleting nonexistent inbound")
 	}
 }
+
+// TestCreateDuplicateTag verifies that creating two inbounds with the same tag
+// returns an error, since tags must be unique identifiers for inbounds.
+func TestCreateDuplicateTag(t *testing.T) {
+	setupTestDB(t)
+	if err := Create(&Inbound{Tag: "dup-tag", Protocol: "vless", Port: 443}); err != nil {
+		t.Fatalf("unexpected error on first create: %v", err)
+	}
+	if err := Create(&Inbound{Tag: "dup-tag", Protocol: "vmess", Port: 8080}); err == nil {
+		t.Error("expected error when creating inbound with duplicate tag")
+	}
+}
