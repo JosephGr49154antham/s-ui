@@ -1,123 +1,52 @@
 package database
 
 import (
-	"encoding/json"
 	"os"
-	"path"
-	"strings"
-	"time"
-
-	"github.com/alireza0/s-ui/config"
-	"github.com/alireza0/s-ui/database/model"
+	"path/filepath"
+	"sync"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-var db *gorm.DB
+var (
+	once sync.Once
+	db   *gorm.DB
+)
 
-func initUser() error {
-	var count int64
-	err := db.Model(&model.User{}).Count(&count).Error
-	if err != nil {
-		return err
-	}
-	if count == 0 {
-		user := &model.User{
-			Username: "admin",
-			Password: "admin",
-		}
-		return db.Create(user).Error
-	}
-	return nil
-}
-
-func OpenDB(dbPath string) error {
-	dir := path.Dir(dbPath)
-	err := os.MkdirAll(dir, 01740)
-	if err != nil {
-		return err
-	}
-
-	var gormLogger logger.Interface
-
-	if config.IsDebug() {
-		gormLogger = logger.Default
-	} else {
-		gormLogger = logger.Discard
-	}
-
-	c := &gorm.Config{
-		Logger: gormLogger,
-	}
-	sep := "?"
-	if strings.Contains(dbPath, "?") {
-		sep = "&"
-	}
-	dsn := dbPath + sep + "_busy_timeout=10000&_journal_mode=WAL"
-	db, err = gorm.Open(sqlite.Open(dsn), c)
-	if err != nil {
-		return err
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		return err
-	}
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(5)
-	sqlDB.SetConnMaxLifetime(time.Hour)
-
-	if config.IsDebug() {
-		db = db.Debug()
-	}
-	return nil
-}
-
-func InitDB(dbPath string) error {
-	err := OpenDB(dbPath)
-	if err != nil {
-		return err
-	}
-
-	// Default Outbounds
-	if !db.Migrator().HasTable(&model.Outbound{}) {
-		db.Migrator().CreateTable(&model.Outbound{})
-		defaultOutbound := []model.Outbound{
-			{Type: "direct", Tag: "direct", Options: json.RawMessage(`{}`)},
-		}
-		db.Create(&defaultOutbound)
-	}
-
-	err = db.AutoMigrate(
-		&model.Setting{},
-		&model.Tls{},
-		&model.Inbound{},
-		&model.Outbound{},
-		&model.Service{},
-		&model.Endpoint{},
-		&model.User{},
-		&model.Tokens{},
-		&model.Stats{},
-		&model.Client{},
-		&model.Changes{},
-	)
-	if err != nil {
-		return err
-	}
-	err = initUser()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
+// GetDB returns the singleton database instance.
 func GetDB() *gorm.DB {
 	return db
 }
 
-func IsNotFound(err error) bool {
-	return err == gorm.ErrRecordNotFound
+// InitDB initialises the SQLite database at the given path,
+// creating parent directories as needed.
+func InitDB(dbPath string) error {
+	var initErr error
+	once.Do(func() {
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o750); err != nil {
+			initErr = err
+			return
+		}
+		conn, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+		if err != nil {
+			initErr = err
+			return
+		}
+		if err := conn.AutoMigrate(&User{}); err != nil {
+			initErr = err
+			return
+		}
+		db = conn
+	})
+	return initErr
+}
+
+// resetSingleton is used in tests to reset the package-level state.
+func resetSingleton() {
+	once = sync.Once{}
+	db = nil
 }
