@@ -71,6 +71,15 @@ func TestGetByEmail(t *testing.T) {
 	}
 }
 
+// TestGetByEmailNotFound verifies that querying a non-existent email returns an error.
+func TestGetByEmailNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	_, err := GetByEmail(db, "nobody@example.com")
+	if err == nil {
+		t.Error("expected error when email does not exist")
+	}
+}
+
 func TestDelete(t *testing.T) {
 	db := setupTestDB(t)
 	c := &Client{Name: "Dave", Email: "dave@example.com", InboundTag: "tag"}
