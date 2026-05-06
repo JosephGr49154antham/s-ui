@@ -1,68 +1,70 @@
 package config
 
 import (
-	_ "embed"
-	"fmt"
+	"encoding/json"
 	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
+	"sync"
 )
 
-//go:embed version
-var version string
+type Config struct {
+	ListenPort  int    `json:"listen_port"`
+	ListenAddr  string `json:"listen_addr"`
+	DBPath      string `json:"db_path"`
+	LogLevel    string `json:"log_level"`
+	SecretKey   string `json:"secret_key"`
+	SessionTTL  int    `json:"session_ttl"`
+	BasePath    string `json:"base_path"`
+}
 
-//go:embed name
-var name string
-
-type LogLevel string
-
-const (
-	Debug LogLevel = "debug"
-	Info  LogLevel = "info"
-	Warn  LogLevel = "warn"
-	Error LogLevel = "error"
+var (
+	instance *Config
+	once     sync.Once
+	mu       sync.RWMutex
 )
 
-func GetVersion() string {
-	return strings.TrimSpace(version)
-}
-
-func GetName() string {
-	return strings.TrimSpace(name)
-}
-
-func GetLogLevel() LogLevel {
-	if IsDebug() {
-		return Debug
+func DefaultConfig() *Config {
+	return &Config{
+		ListenPort: 2095,
+		ListenAddr: "0.0.0.0",
+		DBPath:     "./db/s-ui.db",
+		LogLevel:   "info",
+		SecretKey:  "s-ui-secret",
+		SessionTTL: 86400,
+		BasePath:   "/",
 	}
-	logLevel := os.Getenv("SUI_LOG_LEVEL")
-	if logLevel == "" {
-		return Info
-	}
-	return LogLevel(logLevel)
 }
 
-func IsDebug() bool {
-	return os.Getenv("SUI_DEBUG") == "true"
+func GetConfig() *Config {
+	once.Do(func() {
+		instance = DefaultConfig()
+	})
+	mu.RLock()
+	defer mu.RUnlock()
+	return instance
 }
 
-func GetDBFolderPath() string {
-	dbFolderPath := os.Getenv("SUI_DB_FOLDER")
-	if dbFolderPath == "" {
-		dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-		if err != nil {
-			// Cross-platform fallback path
-			if runtime.GOOS == "windows" {
-				return "C:\\Program Files\\s-ui\\db"
-			}
-			return "/usr/local/s-ui/db"
+func LoadFromFile(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-		dbFolderPath = filepath.Join(dir, "db")
+		return err
 	}
-	return dbFolderPath
+	mu.Lock()
+	defer mu.Unlock()
+	if instance == nil {
+		instance = DefaultConfig()
+	}
+	return json.Unmarshal(data, instance)
 }
 
-func GetDBPath() string {
-	return fmt.Sprintf("%s/%s.db", GetDBFolderPath(), GetName())
+func SaveToFile(path string) error {
+	mu.RLock()
+	defer mu.RUnlock()
+	data, err := json.MarshalIndent(instance, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0600)
 }
