@@ -76,3 +76,15 @@ func TestHandlerMethodNotAllowed(t *testing.T) {
 		t.Errorf("expected 405, got %d", rw.Code)
 	}
 }
+
+// TestHandlerDeleteNotFound verifies that deleting a non-existent client
+// returns 404 rather than silently succeeding with 204.
+func TestHandlerDeleteNotFound(t *testing.T) {
+	h, _ := setupHandler(t)
+	req := httptest.NewRequest(http.MethodDelete, "/clients/999", nil)
+	rw := httptest.NewRecorder()
+	h.ServeHTTP(rw, req)
+	if rw.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rw.Code)
+	}
+}
