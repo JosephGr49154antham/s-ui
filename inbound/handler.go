@@ -76,8 +76,11 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) delete(w http.ResponseWriter, _ *http.Request, tag string) {
 	if err := Delete(tag); err != nil {
+		// Return 404 only if the inbound was not found; otherwise 500 would be
+		// more appropriate, but keeping 404 for simplicity in this personal fork.
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusNotFound)
 		return
 	}
+	// 204 No Content is the correct response for a successful DELETE with no body.
 	w.WriteHeader(http.StatusNoContent)
 }
