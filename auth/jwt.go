@@ -17,9 +17,11 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// jwtSecret is the default signing secret. Override at startup via SetSecret.
 var jwtSecret = []byte("s-ui-secret-key")
 
 // SetSecret allows overriding the default JWT secret (e.g. from config).
+// An empty string is ignored so the existing secret is preserved.
 func SetSecret(secret string) {
 	if secret != "" {
 		jwtSecret = []byte(secret)
@@ -34,6 +36,8 @@ func GenerateToken(username string, ttl time.Duration) (string, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+			// NotBefore ensures the token cannot be used before it is issued.
+			NotBefore: jwt.NewNumericDate(now),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
