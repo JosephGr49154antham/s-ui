@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -28,6 +29,8 @@ func Create(db *gorm.DB, c *Client) error {
 	if c.InboundTag == "" {
 		return errors.New("inbound_tag is required")
 	}
+	// Normalize email to lowercase before saving
+	c.Email = strings.ToLower(c.Email)
 	return db.Create(c).Error
 }
 
@@ -39,7 +42,8 @@ func GetAll(db *gorm.DB) ([]Client, error) {
 
 func GetByEmail(db *gorm.DB, email string) (*Client, error) {
 	var c Client
-	err := db.Where("email = ?", email).First(&c).Error
+	// Normalize email to lowercase for consistent lookups
+	err := db.Where("email = ?", strings.ToLower(email)).First(&c).Error
 	if err != nil {
 		return nil, err
 	}
