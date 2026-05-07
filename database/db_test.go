@@ -64,6 +64,16 @@ func TestCreateUserEmptyUsername(t *testing.T) {
 	}
 }
 
+// TestCreateUserEmptyPassword verifies that an empty password is also rejected.
+// Added this check because the original tests only covered empty username.
+func TestCreateUserEmptyPassword(t *testing.T) {
+	setupTestDB(t)
+	_, err := CreateUser("carol", "")
+	if err == nil {
+		t.Fatal("expected error for empty password")
+	}
+}
+
 func TestGetUserByUsernameNotFound(t *testing.T) {
 	setupTestDB(t)
 	u, err := GetUserByUsername("nobody")
