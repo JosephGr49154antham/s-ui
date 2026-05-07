@@ -74,3 +74,17 @@ func TestLoginBadJSON(t *testing.T) {
 		t.Errorf("expected 400, got %d", rr.Code)
 	}
 }
+
+// TestLoginMissingFields checks that omitting username or password returns 400.
+func TestLoginMissingFields(t *testing.T) {
+	setupAuth(t)
+	h := auth.NewHandler()
+	// Send a body with only the username field, no password.
+	body, _ := json.Marshal(map[string]string{"username": "admin"})
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	h.Login(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing password field, got %d", rr.Code)
+	}
+}
