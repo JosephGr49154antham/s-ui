@@ -88,3 +88,17 @@ func TestLoginMissingFields(t *testing.T) {
 		t.Errorf("expected 400 for missing password field, got %d", rr.Code)
 	}
 }
+
+// TestLoginEmptyBody checks that sending an empty request body returns 400.
+// Added this case because an empty body is distinct from malformed JSON and
+// I wanted to make sure the handler doesn't panic or return an unexpected code.
+func TestLoginEmptyBody(t *testing.T) {
+	setupAuth(t)
+	h := auth.NewHandler()
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader([]byte{}))
+	rr := httptest.NewRecorder()
+	h.Login(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty body, got %d", rr.Code)
+	}
+}
