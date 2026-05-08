@@ -88,3 +88,17 @@ func TestHandlerDeleteNotFound(t *testing.T) {
 		t.Errorf("expected 404, got %d", rw.Code)
 	}
 }
+
+// TestHandlerCreateEmptyName checks that creating a client with an empty name
+// is rejected with 400 Bad Request. The upstream handler doesn't validate this,
+// but I want to ensure my fork enforces non-empty names.
+func TestHandlerCreateEmptyName(t *testing.T) {
+	h, _ := setupHandler(t)
+	body, _ := json.Marshal(Client{Name: "", Email: "noname@b.com", InboundTag: "tag"})
+	req := httptest.NewRequest(http.MethodPost, "/clients", bytes.NewReader(body))
+	rw := httptest.NewRecorder()
+	h.ServeHTTP(rw, req)
+	if rw.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty name, got %d", rw.Code)
+	}
+}
