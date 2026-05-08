@@ -44,10 +44,13 @@ func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// Use 200 OK with a body rather than 204 so clients can easily check the response.
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// RegisterRoutes mounts the config endpoints under the given prefix.
+// Example: prefix="/api/v1" → GET /api/v1/config, POST /api/v1/config/update
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/config", h.GetConfig)
 	mux.HandleFunc(prefix+"/config/update", h.UpdateConfig)
