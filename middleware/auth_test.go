@@ -71,3 +71,17 @@ func TestAuthenticateExpiredToken(t *testing.T) {
 		t.Errorf("expected 401, got %d", rr.Code)
 	}
 }
+
+// TestAuthenticateMalformedToken checks that a token with an invalid
+// signature (e.g. tampered payload) is correctly rejected.
+func TestAuthenticateMalformedToken(t *testing.T) {
+	setup()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	// Deliberately malformed JWT: valid structure but garbage signature.
+	req.Header.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.invalidsignature")
+	rr := httptest.NewRecorder()
+	middleware.Authenticate(http.HandlerFunc(okHandler)).ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
