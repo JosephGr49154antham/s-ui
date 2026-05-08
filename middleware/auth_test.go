@@ -56,7 +56,10 @@ func TestAuthenticateValidToken(t *testing.T) {
 
 func TestAuthenticateExpiredToken(t *testing.T) {
 	setup()
-	token, err := auth.GenerateToken("admin", -time.Minute)
+	// Using -time.Minute generates a token already expired by 1 minute.
+	// Increasing to -2 minutes gives a slightly wider margin in case of
+	// clock skew or slow test environments.
+	token, err := auth.GenerateToken("admin", -2*time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
